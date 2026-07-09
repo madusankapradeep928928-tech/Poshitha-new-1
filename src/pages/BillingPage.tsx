@@ -50,7 +50,7 @@ interface ActiveCartItem extends CartItem {
   lineDiscountValue: number;
 }
 
-// ─── Invoice Receipt (80mm Thermal Receipt Format) ──────────────────────────
+// ─── Invoice Receipt ────────────────────────────────────────────────────────
 function InvoiceReceipt({
   invoice,
   shopName,
@@ -65,136 +65,95 @@ function InvoiceReceipt({
   onNew: () => void;
 }) {
   return (
-    <div className="max-w-md mx-auto space-y-4 print:m-0 print:p-0">
-      {/* Screen Controls (Hidden during printing) */}
-      <Card className="print:hidden">
+    <div className="max-w-xl mx-auto space-y-4">
+      <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2 text-green-500">
             <CheckCircle2 className="w-5 h-5" />
             <CardTitle className="text-lg text-balance">Invoice සාර්ථකව නිකුත් කෙරිණ</CardTitle>
           </div>
         </CardHeader>
+        <CardContent className="space-y-4" id="print-invoice">
+          {/* Shop header */}
+          <div className="text-center border-b border-border pb-3">
+            <p className="font-bold text-base">{shopName}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Invoice #{invoice.invoice_no}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+            <span className="text-muted-foreground">Cashier:</span>
+            <span>{invoice.cashier_username}</span>
+            <span className="text-muted-foreground">ගෙවීම:</span>
+            <span>{PAYMENT_LABELS[invoice.payment_method]}</span>
+            {invoice.customer_name && (
+              <>
+                <span className="text-muted-foreground">පාරිභෝගිකයා:</span>
+                <span>{invoice.customer_name}</span>
+              </>
+            )}
+            {invoice.customer_phone && (
+              <>
+                <span className="text-muted-foreground">දුරකථන:</span>
+                <span>{invoice.customer_phone}</span>
+              </>
+            )}
+            <span className="text-muted-foreground">දිනය:</span>
+            <span>{new Date(invoice.created_at).toLocaleString('si-LK')}</span>
+          </div>
+          <Separator />
+          {/* Items */}
+          <div className="space-y-2">
+            {invoice.items?.map(item => (
+              <div key={item.id} className="text-sm">
+                <div className="flex items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{item.product_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Rs. {item.price_per_unit.toFixed(2)} × {fmtQty(Number(item.qty), item.unit ?? 'pcs')} {item.unit}
+                    </p>
+                  </div>
+                  <p className="font-semibold shrink-0">Rs. {item.total.toFixed(2)}</p>
+                </div>
+                {item.free_qty > 0 && (
+                  <p className="text-xs text-green-500">+ {fmtQty(Number(item.free_qty), item.unit ?? 'pcs')} {item.unit} නොමිලේ</p>
+                )}
+                {item.discount_amount > 0 && (
+                  <p className="text-xs text-amber-500">- Rs. {item.discount_amount.toFixed(2)} වට්ටම</p>
+                )}
+              </div>
+            ))}
+          </div>
+          <Separator />
+          <div className="space-y-1">
+            <div className="flex justify-between font-bold text-base">
+              <span>මුළු</span>
+              <span>Rs. {invoice.total_amount.toFixed(2)}</span>
+            </div>
+            {invoice.tendered_amount != null && (
+              <>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>ලබාදුන්:</span>
+                  <span>Rs. {invoice.tendered_amount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm font-semibold text-green-500">
+                  <span>ඉතිරිය:</span>
+                  <span>Rs. {(invoice.change_amount ?? 0).toFixed(2)}</span>
+                </div>
+              </>
+            )}
+          </div>
+          {isAdmin && invoice.total_profit > 0 && (
+            <p className="text-sm text-green-500 text-right">ලාභය: Rs. {invoice.total_profit.toFixed(2)}</p>
+          )}
+        </CardContent>
         <CardFooter className="gap-2 flex-wrap">
-          <Button onClick={onPrint} className="gap-2 bg-primary text-white w-full sm:w-auto">
-            <Printer className="w-4 h-4" /> Print Bill
+          <Button variant="outline" onClick={onPrint} className="gap-2">
+            <Printer className="w-4 h-4" /> Print
           </Button>
-          <Button variant="outline" onClick={onNew} className="gap-2 w-full sm:w-auto">
+          <Button onClick={onNew} className="gap-2">
             <RotateCcw className="w-4 h-4" /> නව Bill
           </Button>
         </CardFooter>
       </Card>
-
-      {/* Thermal Bill View */}
-      <div id="print-invoice" className="w-[80mm] mx-auto p-4 bg-white text-black font-mono text-xs leading-tight print:p-2 print:w-full">
-        {/* Shop header */}
-        <div className="text-center mb-4">
-          <h2 className="text-base font-bold uppercase tracking-wider">{shopName}</h2>
-          <p className="text-[10px] text-zinc-700">LMP Complex, Bandaranayake Street, Alawwa</p>
-          <p className="text-[10px] text-zinc-700">Tel: 0715600215</p>
-          <p className="text-[10px] text-zinc-700">Email: anuaracchigeinfo@gmail.com</p>
-        </div>
-
-        {/* Invoice Meta Data */}
-        <div className="space-y-0.5 border-b border-dashed border-zinc-400 pb-2 mb-2">
-          <div className="flex justify-between">
-            <span>Invoice No:</span>
-            <span className="font-bold">#{invoice.invoice_no}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Date:</span>
-            <span>{new Date(invoice.created_at).toLocaleString('si-LK')}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Cashier:</span>
-            <span>{invoice.cashier_username}</span>
-          </div>
-          {invoice.customer_name && (
-            <div className="flex justify-between">
-              <span>Customer:</span>
-              <span>{invoice.customer_name}</span>
-            </div>
-          )}
-          {invoice.customer_phone && (
-            <div className="flex justify-between">
-              <span>Phone:</span>
-              <span>{invoice.customer_phone}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Table Headers */}
-        <div className="flex font-bold border-b border-dashed border-zinc-400 pb-1 mb-1">
-          <span className="w-[55%]">Item Description</span>
-          <span className="w-[20%] text-center">Qty</span>
-          <span className="w-[25%] text-right">Amount</span>
-        </div>
-
-        {/* Items List */}
-        <div className="space-y-1 border-b border-dashed border-zinc-400 pb-2 mb-2">
-          {invoice.items?.map(item => (
-            <div key={item.id} className="space-y-0.5">
-              <div className="flex items-start">
-                <span className="w-[55%] truncate pr-1">{item.product_name}</span>
-                <span className="w-[20%] text-center">
-                  {fmtQty(Number(item.qty), item.unit ?? 'pcs')}
-                </span>
-                <span className="w-[25%] text-right">{item.total.toFixed(2)}</span>
-              </div>
-              <p className="text-[10px] text-zinc-600 pl-2">
-                Rs. {item.price_per_unit.toFixed(2)} each
-              </p>
-              {item.free_qty > 0 && (
-                <p className="text-[10px] text-zinc-600 pl-2">+ {fmtQty(Number(item.free_qty), item.unit ?? 'pcs')} Free</p>
-              )}
-              {item.discount_amount > 0 && (
-                <p className="text-[10px] text-zinc-600 pl-2">- Rs. {item.discount_amount.toFixed(2)} Discount</p>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Financials Summary */}
-        <div className="space-y-1 text-right border-b border-dashed border-zinc-400 pb-2 mb-2 font-bold">
-          <div className="flex justify-between">
-            <span className="font-normal text-zinc-600">Subtotal:</span>
-            <span>{(invoice.total_amount + (invoice.items?.reduce((s, i) => s + i.discount_amount, 0) || 0)).toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="font-normal text-zinc-600">Total Discount:</span>
-            <span>{(invoice.items?.reduce((s, i) => s + i.discount_amount, 0) || 0).toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between text-sm pt-1 border-t border-dotted border-zinc-300">
-            <span>GRAND TOTAL:</span>
-            <span>{invoice.total_amount.toFixed(2)}</span>
-          </div>
-        </div>
-
-        {/* Payment Details */}
-        <div className="space-y-0.5 mb-4">
-          <div className="flex justify-between">
-            <span>Payment Method:</span>
-            <span className="font-bold uppercase">{PAYMENT_LABELS[invoice.payment_method]}</span>
-          </div>
-          {invoice.tendered_amount != null && (
-            <>
-              <div className="flex justify-between">
-                <span>Tendered Amount:</span>
-                <span className="font-bold">{invoice.tendered_amount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm font-bold pt-0.5">
-                <span>Balance Due:</span>
-                <span>{(invoice.change_amount ?? 0).toFixed(2)}</span>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="text-center pt-2 border-t border-dashed border-zinc-400">
-          <p className="font-bold">Total Items Sold: {invoice.items?.length || 0}</p>
-          <p className="mt-1 text-[11px] tracking-wide">Thank you, Come Again!</p>
-        </div>
-      </div>
     </div>
   );
 }
@@ -486,7 +445,8 @@ export default function BillingPage() {
 
   const totalAmount    = cart.reduce((s, c) => s + c.total, 0);
   const totalProfit    = cart.reduce((s, c) => s + c.profit, 0);
-  const totalItems     = cart.length;   
+  // For pcs units sum integers; for float units sum as weight — use line count for badge
+  const totalItems     = cart.length;   // number of distinct lines
   const totalDiscount  = cart.reduce((s, c) => s + c.discountAmount, 0);
   const totalFreeItems = cart.reduce((s, c) => s + c.freeQty, 0);
   const parsedTendered = parseFloat(tenderedAmount) || 0;
@@ -497,6 +457,7 @@ export default function BillingPage() {
     async function loadProducts() {
       if (isOnline) {
         try {
+          // If cashier has a branch assigned, load only that branch's products
           const products = shopId
             ? await getProductsForPOS(shopId, branchId)
             : await getProducts();
@@ -812,15 +773,405 @@ export default function BillingPage() {
                   {nameSearch && (
                     <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8"
                       onClick={() => { setNameSearch(''); setNameResults([]); }}>
-                      <X className="w-4 h-4" />
+                      <X className="w-3 h-3" />
                     </Button>
                   )}
                 </div>
+                {nameResults.length > 0 && (
+                  <div className="absolute z-50 left-6 right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+                    {nameResults.map(p => (
+                      <button key={p.id}
+                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-muted/50 text-left text-sm"
+                        onClick={() => addToCartByProduct(p)}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{p.name}</p>
+                          <p className="text-xs text-muted-foreground">{p.unit} · Rs. {p.price.toFixed(2)} · Stock: {p.qty}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Product Buttons */}
+          {(quickProducts.length > 0 || isAdmin) && (
+            <Card>
+              <CardHeader className="pb-2 pt-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm text-balance">ශීඝ්‍ර භාණ්ඩ</CardTitle>
+                  {isAdmin && (
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowQBConfig(true)}>
+                      <Settings2 className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="pb-3">
+                {quickProducts.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Admin settings icon click කර quick buttons configure කරන්න
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
+                    {quickProducts.map(p => (
+                      <button key={p.id}
+                        onClick={() => addToCartByProduct(p)}
+                        className="text-left p-2 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors"
+                      >
+                        <p className="text-xs font-medium truncate">{p.name}</p>
+                        <p className="text-xs text-muted-foreground">Rs. {p.price.toFixed(2)}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Cart */}
+          <Card className="flex flex-col">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base text-balance">
+                  Cart {totalItems > 0 && <span className="text-muted-foreground font-normal text-sm">({totalItems} items)</span>}
+                </CardTitle>
+                <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                  {totalFreeItems > 0 && (
+                    <Badge className="text-xs bg-green-500 text-white hover:bg-green-500 gap-1">
+                      <Gift className="w-3 h-3" />Free ×{totalFreeItems}
+                    </Badge>
+                  )}
+                  {totalDiscount > 0 && (
+                    <Badge className="text-xs bg-amber-500 text-white hover:bg-amber-500 gap-1">
+                      <Tag className="w-3 h-3" />-Rs.{totalDiscount.toFixed(0)}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="min-h-0 overflow-y-auto max-h-[40vh]">
+              {cart.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground gap-2">
+                  <ShoppingCart className="w-8 h-8 opacity-30" />
+                  <p className="text-sm">Cart හිස්ය. Barcode scan කරන්න.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {cart.map(c => (
+                    <CartLineItem key={c.product.id} item={c} isAdmin={isAdmin}
+                      onSetQty={qty => setQty(c.product.id, qty)}
+                      onSetDiscount={(type, val) => setLineDiscount(c.product.id, type, val)}
+                      onRemove={() => removeItem(c.product.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ── Right: customer + payment + checkout ── */}
+        <div className="lg:col-span-2 space-y-3">
+          {/* Customer Info */}
+          <Card>
+            <CardHeader className="pb-2 pt-3">
+              <CardTitle className="text-sm text-balance">පාරිභෝගික තොරතුරු (විකල්ප)</CardTitle>
+            </CardHeader>
+            <CardContent className="pb-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <Input
+                  placeholder="නම..."
+                  value={customerName}
+                  onChange={e => setCustomerName(e.target.value)}
+                  className="px-2 h-8 text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <Input
+                  placeholder="දුරකථන..."
+                  value={customerPhone}
+                  onChange={e => setCustomerPhone(e.target.value)}
+                  className="px-2 h-8 text-sm"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Payment */}
+          <Card>
+            <CardHeader className="pb-2 pt-3">
+              <CardTitle className="text-sm text-balance">ගෙවීමේ ක්‍රමය</CardTitle>
+            </CardHeader>
+            <CardContent className="pb-3 space-y-3">
+              <div className="grid grid-cols-3 gap-1">
+                {PAYMENT_OPTIONS.map(opt => (
+                  <button key={opt.value}
+                    onClick={() => setPaymentMethod(opt.value)}
+                    className={cn(
+                      'flex flex-col items-center gap-1 p-2 rounded-lg border text-xs font-medium transition-colors',
+                      paymentMethod === opt.value
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border hover:bg-muted/30 text-muted-foreground'
+                    )}
+                  >
+                    {opt.icon}
+                    <span className="whitespace-nowrap text-[10px]">{opt.value === 'cash' ? 'Cash' : opt.value === 'card' ? 'Card' : 'ණය'}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Cash change calculator */}
+              {paymentMethod === 'cash' && (
+                <div className="space-y-2">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">ලබාදෙන මුදල (Rs.)</Label>
+                    <Input
+                      type="number"
+                      placeholder="0.00"
+                      value={tenderedAmount}
+                      onChange={e => setTenderedAmount(e.target.value)}
+                      className="px-3 mt-1"
+                    />
+                  </div>
+                  {parsedTendered > 0 && (
+                    <div className={cn(
+                      'flex justify-between text-sm font-semibold p-2 rounded-lg',
+                      changeAmount >= 0 ? 'bg-green-500/10 text-green-600' : 'bg-destructive/10 text-destructive'
+                    )}>
+                      <span>ඉතිරිය:</span>
+                      <span>Rs. {changeAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Total + Actions */}
+          <Card>
+            <CardContent className="pt-4 pb-4 space-y-3">
+              <div className="space-y-1">
+                {totalDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-amber-500">
+                    <span>වට්ටම</span>
+                    <span>-Rs. {totalDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-xl">
+                  <span>මුළු</span>
+                  <span>Rs. {totalAmount.toFixed(2)}</span>
+                </div>
+                {isAdmin && totalProfit > 0 && (
+                  <p className="text-xs text-green-500 text-right">ලාභය: Rs. {totalProfit.toFixed(2)}</p>
+                )}
+              </div>
+
+              <Button
+                className="w-full h-11 text-base font-semibold gap-2"
+                disabled={cart.length === 0 || checkingOut}
+                onClick={() => setShowPreview(true)}
+              >
+                <Eye className="w-4 h-4" />
+                Preview &amp; Checkout
+              </Button>
+
+              <div className="grid grid-cols-2 gap-1.5">
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs"
+                  onClick={handleHold} disabled={cart.length === 0}>
+                  <PauseCircle className="w-3.5 h-3.5" />Hold
+                </Button>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={openHeldBills}>
+                  <PlayCircle className="w-3.5 h-3.5" />Resume
+                </Button>
+              </div>
+
+              <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs" onClick={openDayEnd}>
+                <BarChart2 className="w-3.5 h-3.5" />දින අවසාන සාරාංශ
+              </Button>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* ── Modals ── */}
+      <InvoicePreviewModal
+        open={showPreview} onClose={() => setShowPreview(false)} onConfirm={doCheckout}
+        cart={cart} paymentMethod={paymentMethod}
+        customerName={customerName} customerPhone={customerPhone}
+        totalAmount={totalAmount} tenderedAmount={tenderedAmount} changeAmount={changeAmount}
+        shopName={shopName} cashierName={profile?.username ?? ''} checkingOut={checkingOut}
+      />
+      <HeldBillsModal
+        open={showHeld} onClose={() => setShowHeld(false)}
+        heldBills={heldBills} onResume={resumeBill}
+      />
+      <DayEndModal
+        open={showDayEnd} onClose={() => setShowDayEnd(false)} summary={dayEndSummary}
+      />
+      {isAdmin && (
+        <QuickButtonsConfigModal
+          open={showQBConfig} onClose={() => setShowQBConfig(false)}
+          products={localProducts} currentIds={quickButtonIds}
+          shopId={shopId} onSaved={setQuickButtonIds}
+        />
+      )}
     </AppLayout>
+  );
+}
+
+// ─── Cart Line Item Component ──────────────────────────────────────────────
+function CartLineItem({
+  item, isAdmin, onSetQty, onSetDiscount, onRemove,
+}: {
+  item: ActiveCartItem;
+  isAdmin: boolean;
+  onSetQty: (qty: number) => void;
+  onSetDiscount: (type: LineDiscountType, value: number) => void;
+  onRemove: () => void;
+}) {
+  const [showDiscount, setShowDiscount] = useState(false);
+  const [discType, setDiscType]         = useState<LineDiscountType>(item.lineDiscountType);
+  const [discVal, setDiscVal]           = useState(String(item.lineDiscountValue || ''));
+  // Local string state so user can type "1." or "0.5" freely
+  const [qtyStr, setQtyStr]             = useState(fmtQty(item.qty, item.product.unit));
+
+  // Keep local display in sync when parent qty changes externally (e.g. resume bill)
+  const unit = item.product.unit;
+  const step = qtyStep(unit);
+
+  const commitQty = (raw: string) => {
+    const v = parseFloat(raw);
+    if (!isNaN(v) && v > 0) onSetQty(v);
+    else setQtyStr(fmtQty(item.qty, unit)); // revert bad input
+  };
+
+  const applyDiscount = () => {
+    const val = parseFloat(discVal) || 0;
+    if (discType === 'percent' && val > 100) { toast.error('වට්ටම 1-100% ✓'); return; }
+    const lineTotal = item.qty * item.product.price;
+    if (discType === 'amount' && val > lineTotal) { toast.error('වට්ටම total ට වඩා වැඩිය'); return; }
+    onSetDiscount(discType, val);
+    setShowDiscount(false);
+  };
+
+  const subtotal = item.qty * item.product.price;
+
+  return (
+    <div className="p-2.5 rounded-lg border border-border bg-muted/20 space-y-1.5">
+      {/* Row 1: name + qty + total + remove */}
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm truncate">{item.product.name}</p>
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground/70">{unit}</span>
+            {' '}· Rs. {item.product.price.toFixed(2)}/{unit}
+            {item.discountAmount > 0 && (
+              <span className="text-amber-500 ml-1">-Rs.{item.discountAmount.toFixed(2)}</span>
+            )}
+          </p>
+        </div>
+
+        {/* Qty controls — wider input for float units */}
+        <div className="flex items-center gap-1 shrink-0">
+          <Button variant="outline" size="icon" className="h-6 w-6"
+            onClick={() => {
+              const next = parseFloat((item.qty - step).toFixed(3));
+              onSetQty(next);
+              setQtyStr(fmtQty(next, unit));
+            }}>
+            <Minus className="w-3 h-3" />
+          </Button>
+          <Input
+            type="number"
+            min={step}
+            step={step}
+            value={qtyStr}
+            onChange={e => setQtyStr(e.target.value)}
+            onBlur={e => commitQty(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') commitQty(qtyStr); }}
+            className={cn(
+              'h-6 text-center text-sm px-1 font-semibold',
+              isFloatUnit(unit) ? 'w-16' : 'w-10',
+            )}
+          />
+          <Button variant="outline" size="icon" className="h-6 w-6"
+            onClick={() => {
+              const next = parseFloat((item.qty + step).toFixed(3));
+              onSetQty(next);
+              setQtyStr(fmtQty(next, unit));
+            }}
+            disabled={item.qty >= item.product.qty}>
+            <Plus className="w-3 h-3" />
+          </Button>
+        </div>
+
+        {/* Total */}
+        <div className="w-16 text-right shrink-0">
+          {item.discountAmount > 0 && (
+            <p className="text-xs text-muted-foreground line-through">Rs.{subtotal.toFixed(0)}</p>
+          )}
+          <p className="font-semibold text-sm">Rs.{item.total.toFixed(2)}</p>
+          {isAdmin && <p className="text-xs text-green-500">+{item.profit.toFixed(0)}</p>}
+        </div>
+
+        <Button variant="ghost" size="icon"
+          className="h-6 w-6 text-destructive hover:text-destructive shrink-0"
+          onClick={onRemove}>
+          <Trash2 className="w-3 h-3" />
+        </Button>
+      </div>
+
+      {/* Badges + discount toggle */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {item.freeQty > 0 && (
+          <Badge className="text-xs bg-green-500/15 text-green-600 border border-green-500/30 hover:bg-green-500/15 gap-1 h-5">
+            <Gift className="w-3 h-3" />{fmtQty(item.freeQty, unit)} {unit} නොමිලේ
+          </Badge>
+        )}
+        {item.discountAmount > 0 && (
+          <Badge className="text-xs bg-amber-500/15 text-amber-600 border border-amber-500/30 hover:bg-amber-500/15 gap-1 h-5">
+            <Tag className="w-3 h-3" />
+            {item.lineDiscountType === 'percent' ? `${item.lineDiscountValue}%` : `Rs.${item.lineDiscountValue}`} discount
+          </Badge>
+        )}
+        <button
+          onClick={() => setShowDiscount(p => !p)}
+          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-0.5 ml-auto"
+        >
+          <Percent className="w-3 h-3" />
+          <span>{showDiscount ? 'Close' : 'Discount'}</span>
+        </button>
+      </div>
+
+      {/* Inline discount form */}
+      {showDiscount && (
+        <div className="flex items-center gap-1.5 pt-1">
+          <Select value={discType} onValueChange={v => setDiscType(v as LineDiscountType)}>
+            <SelectTrigger className="h-7 w-20 text-xs px-2">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              <SelectItem value="percent">%</SelectItem>
+              <SelectItem value="amount">Rs.</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            type="number"
+            placeholder="0"
+            value={discVal}
+            onChange={e => setDiscVal(e.target.value)}
+            className="h-7 px-2 text-xs flex-1 min-w-0"
+            disabled={discType === 'none'}
+          />
+          <Button size="sm" className="h-7 px-2 text-xs" onClick={applyDiscount}>Apply</Button>
+        </div>
+      )}
+    </div>
   );
 }

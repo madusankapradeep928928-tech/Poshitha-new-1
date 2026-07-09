@@ -148,57 +148,41 @@
   }
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
-   HIGHLY OPTIMIZED 80mm THERMAL RECEIPT PRINT STYLES
-   ────────────────────────────────────────────────────────────────────────── */
+/* Print styles for receipts */
 @media print {
-  /* ඇප් එකේ තියෙන අනිත් හැමදේම හංගනවා */
-  body * { 
-    visibility: hidden; 
-  }
+  /* Hide everything except the invoice */
+  body * { visibility: hidden; }
 
-  /* බිල් පත සහ ඒක ඇතුළේ තියෙන දේවල් විතරක් පෙන්වනවා */
   #print-invoice,
-  #print-invoice * { 
-    visibility: visible; 
-  }
+  #print-invoice * { visibility: visible; }
 
-  /* බිල පිටුවේ ඉහළම වම් කෙළවරට absolute කරලා දිග දිගට එන්න හදනවා */
   #print-invoice {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
-    width: 80mm !important;
-    max-width: 80mm !important;
-    padding: 2mm !important;
-    margin: 0 !important;
+    width: 80mm;          /* standard thermal receipt width */
+    padding: 4mm;
     font-family: monospace, sans-serif;
     font-size: 11px;
-    line-height: 1.3;
+    line-height: 1.4;
     color: #000 !important;
     background: #fff !important;
   }
 
-  /* Thermal printer වලට ගැලපෙන්න හැම text එකක්ම තද කළු පාට කරනවා */
+  /* Force all text black on white for thermal printers */
   #print-invoice p,
   #print-invoice span,
-  #print-invoice div { 
-    color: #000 !important; 
-    background: transparent !important; 
-  }
+  #print-invoice div { color: #000 !important; background: transparent !important; }
 
-  /* කඩ ඉරි (Dashed lines) ලස්සනට ප්‍රින්ට් වෙන්න */
+  /* Separator lines */
   #print-invoice hr,
-  #print-invoice [role="separator"],
-  #print-invoice .border-dashed {
-    border: none !important;
-    border-top: 1px dashed #000 !important;
-    margin: 2mm 0 !important;
-    display: block !important;
-    width: 100% !important;
+  #print-invoice [role="separator"] {
+    border: none;
+    border-top: 1px dashed #000;
+    margin: 3mm 0;
   }
 
-  /* අනවශ්‍ය Card Borders සහ Shadow අයින් කරනවා */
+  /* Remove card chrome */
   #print-invoice [class*="rounded"],
   #print-invoice [class*="border"] {
     border: none !important;
@@ -206,11 +190,8 @@
     box-shadow: none !important;
   }
 
-  /* Browser එකෙන් ඉබේම දාන URL, Date සහ Margins සම්පූර්ණයෙන්ම ඉවත් කිරීමට */
-  @page { 
-    margin: 0mm; 
-    size: 80mm auto; 
-  }
+  /* No page margins for receipts */
+  @page { margin: 0; size: 80mm auto; }
 }
 
 .gradient-text {
